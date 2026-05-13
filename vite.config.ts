@@ -22,6 +22,10 @@ function customRoutingPlugin() {
           console.log("Rewriting to /multi_player_refactor/index.html for:", url);
           req.url = `/multi_player_refactor/index.html${url.includes('?') ? url.substring(url.indexOf('?')) : ''}`;
         }
+        if (url.startsWith('/versus_refactor/') && !url.endsWith('/versus_refactor/index.html')) {
+          console.log("Rewriting to /versus_refactor/index.html for:", url);
+          req.url = `/versus_refactor/index.html${url.includes('?') ? url.substring(url.indexOf('?')) : ''}`;
+        }
         next();
       });
     }
@@ -48,6 +52,7 @@ export default defineConfig(({ mode }) => {
           multi_player: resolve(__dirname, 'multi_player/index.html'),
           single_player_refactor: resolve(__dirname, 'single_player_refactor/index.html'),
           multi_player_refactor: resolve(__dirname, 'multi_player_refactor/index.html'),
+          versus_refactor: resolve(__dirname, 'versus_refactor/index.html'),
         }
       },
       define: {

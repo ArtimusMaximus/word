@@ -25,4 +25,14 @@ public class PageForwardController {
     public String multiPlayerSlash() {
         return "forward:/multi_player/index.html";
     }
+
+    @GetMapping("/versus_refactor")
+    public String versusRefactorRoot() {
+        return "forward:/versus_refactor/index.html";
+    }
+
+    @GetMapping("/versus_refactor/")
+    public String versusRefactorSlash() {
+        return "forward:/versus_refactor/index.html";
+    }
 }
