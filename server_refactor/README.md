@@ -17,3 +17,14 @@ Suggested direction for this refactor:
 - `domain/` for room, player, and board models
 
 We can keep this new server thin at first and grow it intentionally.
+
+## Run locally
+
+From the repository root:
+
+```bash
+cd server_refactor
+mvn spring-boot:run
+```
+
+Then run `npm run dev` from the repository root. Do not start the Maven project in `server/` when testing `multi_player_refactor`; the original server does not expose `/api/rooms`.

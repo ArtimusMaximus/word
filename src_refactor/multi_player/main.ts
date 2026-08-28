@@ -18,6 +18,7 @@ type BoardRow = {
 
 type RoomSnapshot = {
   roomId: string;
+  roomName: string;
   status: string;
   wordLength: number;
   maxRows: number;
@@ -59,13 +60,12 @@ type GameEventPayload = {
 
 declare const confetti: ((options: Record<string, unknown>) => void) | undefined;
 
-const isLocalDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-const REFRACTOR_API_URL = isLocalDev ? "http://localhost:1985" : "";
-const REFRACTOR_WS_HOST = isLocalDev ? "localhost:1985" : window.location.host;
+const REFRACTOR_API_URL = "";
+const REFRACTOR_WS_HOST = window.location.host;
 const app = document.getElementById("app");
-const DEFAULT_KEYBOARD_CLASS = "kbd text-pink-200 bg-black h-20";
-const DEFAULT_ENTER_CLASS = "kbd text-pink-200 bg-black h-20";
-const DEFAULT_BACKSPACE_CLASS = "kbd text-pink-200 bg-black font-bold w-16 sm:w-[73px] h-20";
+const DEFAULT_KEYBOARD_CLASS = "kbd kbd-xl text-base sm:text-xl text-pink-200 bg-black h-20";
+const DEFAULT_ENTER_CLASS = "kbd kbd-xl text-base sm:text-xl text-pink-200 bg-black h-20";
+const DEFAULT_BACKSPACE_CLASS = "kbd kbd-xl text-base sm:text-xl text-pink-200 bg-black font-bold w-16 sm:w-[73px] h-20";
 const USERNAME_MAX_LENGTH = 15;
 
 let chatSocket: WebSocket | null = null;
@@ -99,16 +99,22 @@ function normalizeSnapshot(snapshot: RoomSnapshot): RoomSnapshot {
   };
 }
 
-function generateRoomId() {
-  return `room_${Math.random().toString(36).slice(2, 11)}`;
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function getRecentRoomId() {
-  return localStorage.getItem("refactor-recent-room");
+function getRecentRoomName() {
+  return localStorage.getItem("refactor-recent-room-name");
 }
 
-function setRecentRoomId(roomId: string) {
+function setRecentRoom(roomId: string, roomName: string) {
   localStorage.setItem("refactor-recent-room", roomId);
+  localStorage.setItem("refactor-recent-room-name", roomName);
 }
 
 function getRoomId() {
@@ -161,10 +167,11 @@ function getRoomMembership(roomId: string) {
   return memberships[roomId] ?? null;
 }
 
-function roomChooserMarkup(defaultRoomId: string, invited = false) {
+function roomChooserMarkup(defaultRoomName: string, invited = false) {
   const currentUser = ensureLocalPlayer();
-  const recentRoomLabel = !invited && defaultRoomId
-    ? `<p class="mt-2 text-sm italic text-black/70">Recent room: <span class="font-bold lowercase">${defaultRoomId}</span></p>`
+  const safeRoomName = escapeHtml(defaultRoomName);
+  const recentRoomLabel = !invited && defaultRoomName
+    ? `<p class="mt-2 text-sm italic text-black/70">Recent room: <span class="font-bold">${safeRoomName}</span></p>`
     : "";
   return `
     <div id="toastContainer" class="toast toast-top toast-center z-50"></div>
@@ -174,19 +181,36 @@ function roomChooserMarkup(defaultRoomId: string, invited = false) {
       </div>
 
       <div class="bg-white/70 border border-black rounded-md p-6 text-center text-black w-full">
-        <p class="text-lg font-bold">Multiplayer Refactor</p>
+        <p class="text-lg font-bold">Multiplayer</p>
         <p class="mt-2 italic">${invited ? "Choose your username and join the room you were invited to." : "Create a room or join an existing one with your chosen username."}</p>
         ${recentRoomLabel}
-        <div class="mt-6 flex flex-col gap-3 justify-center items-center">
-          <input id="username-input" class="input input-bordered bg-white text-black" value="${currentUser.username}" placeholder="username" maxlength="${USERNAME_MAX_LENGTH}" />
-          <div class="flex flex-col sm:flex-row gap-3 justify-center">
-            <input id="room-id-input" class="input input-bordered bg-white text-center font-bold lowercase text-black ${invited ? "hidden" : ""}" value="${defaultRoomId}" placeholder="room id" />
-            ${invited ? `<div class="flex items-center justify-center rounded-md border border-black bg-white px-4 py-3 text-center font-bold lowercase">${defaultRoomId}</div>` : `<button id="create-room-btn" class="btn bg-black text-pink-300">Create New Room</button>`}
+        <div class="mt-6 flex flex-col gap-6 justify-center items-center">
+          <label class="floating-label">
+            <input
+              id="username-input"
+              class="input input-bordered input-xs sm:input-sm md:input-md lg:input-lg xl:input-xl bg-white text-black"
+              value="${currentUser.username}"
+              placeholder="Username"
+              maxlength="${USERNAME_MAX_LENGTH}"
+              type="text" />
+            <span class="bg-white rounded-lg border border-pink-300 p-1 italic">Username</span>
+          </label>
+          <div class="flex flex-col gap-3 justify-center items-center mx-auto">
+          <label class="floating-label w-full">
+            <input
+              id="room-id-input"
+              class="input input-bordered bg-white text-center input-xs sm:input-sm md:input-md lg:input-lg xl:input-xl text-black"
+              value="${safeRoomName}"
+              placeholder="Room name"
+              ${invited ? "readonly" : ""} />
+            <span class="bg-white rounded-lg border border-pink-300 p-1 italic">Room Name</span>
+          </label>
+          ${invited ? "" : `<button id="create-room-btn" class="btn bg-black text-pink-300 mx-auto">Create New Room</button>`}
             <button id="open-room-btn" class="btn bg-black text-pink-300">${invited ? "Join Room" : "Join Existing Room"}</button>
           </div>
         </div>
         <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-          <a href="../multi_player_refactor/" class="btn bg-black text-pink-300">Reset</a>
+          <a href="../multi_player_refactor/" class="btn bg-black text-pink-300 w-36 mx-auto">Reset</a>
         </div>
       </div>
     </div>
@@ -217,11 +241,20 @@ function gameMarkup() {
       <h1 class="text-2xl sm:text-4xl font-bold text-center text-black italic mx-auto hidden sm:flex">WORDLE</h1>
     </div>
 
-    <div id="chatBar" class="collapse bg-white absolute right-2 top-2 w-24 lg:w-80 text-pink-300">
+    <div id="chatBar" class="collapse bg-white absolute right-2 top-2 w-24 sm:w-80 text-pink-300 z-50">
       <input id="arrowBar" type="checkbox" />
       <div class="collapse-title text-xl font-medium">
         <div class="flex flex-row justify-start lg:justify-between">
-          <div>Chat</div>
+          <div class="flex items-center gap-2">
+            <span>Chat</span>
+            <span
+              id="unreadChatIndicator"
+              class="unread-chat-indicator hidden"
+              role="status"
+              aria-label="Unread chat message"
+              title="Unread chat message"
+            ></span>
+          </div>
           <div id="arrowDown" class="text-xl font-bold">&#9660;</div>
           <div id="arrowUp" class="text-xl font-bold hidden">&#9650;</div>
         </div>
@@ -235,7 +268,7 @@ function gameMarkup() {
       </div>
     </div>
 
-    <div class="flex flex-col items-center justify-center py-4 gap-2">
+    <div class="flex flex-col items-center justify-center py-4 gap-2 sm:w-3/4 lg:w-1/2  2xl:w-1/3 mx-auto">
       <span class="text-black italic font-bold">Players:</span>
   <!--    <div id="userTurn" class="mt-3 min-h-8 rounded-md bg-white/80 px-4 py-2 text-xl text-black font-bold"></div> -->
       <div id="playerQueue" class="mt-3 flex flex-col gap-2 w-full max-w-xs"></div>
@@ -282,7 +315,7 @@ function gameMarkup() {
       </div>
     </div>
 
-    <div id="gameStatusPanel" class="mt-4 bg-white/80 border border-black rounded-md p-4 text-black"></div>
+    <div id="gameStatusPanel" class="mt-4 mb-24 bg-white/80 border border-black rounded-md p-4 text-black lg:w-1/2 mx-auto"></div>
 
     <dialog id="gameOverModal" class="modal text-black">
       <div class="modal-box bg-white border-4 border-pink-200">
@@ -314,18 +347,18 @@ function gameMarkup() {
   `;
 }
 
-function renderLanding(defaultRoomId = getRecentRoomId() ?? generateRoomId(), invited = false) {
+function renderLanding(defaultRoomName = getRecentRoomName() ?? "", invited = false) {
   if (!app) return;
   currentRenderedRoomId = null;
   latestSnapshot = null;
-  app.className = "bg-transparent w-full min-h-screen sm:w-1/2 mx-auto p-0 sm:p-1 pb-10";
-  app.innerHTML = roomChooserMarkup(defaultRoomId, invited);
+  app.className = "bg-transparent w-full min-h-screen sm:w-3/4 mx-auto p-0 sm:p-1 pb-10";
+  app.innerHTML = roomChooserMarkup(defaultRoomName, invited);
   bindLandingControls();
 }
 
 function renderGameShell() {
   if (!app) return;
-  app.className = "bg-transparent w-full min-h-screen sm:w-1/2 mx-auto p-0 sm:p-1 pb-10";
+  app.className = "bg-transparent w-full min-h-screen sm:w-3/4 mx-auto p-0 sm:p-1 pb-10";
   app.innerHTML = gameMarkup();
   bindChatCollapse();
   bindKeyboardPressEffects();
@@ -336,7 +369,7 @@ function renderGameShell() {
 
 function renderError(message: string) {
   if (!app) return;
-  app.className = "bg-transparent w-full min-h-screen sm:w-1/2 mx-auto p-4 sm:p-6";
+  app.className = "bg-transparent w-full min-h-screen sm:w-3/4 mx-auto p-4 sm:p-6";
   app.innerHTML = `
     <div class="bg-white/80 border border-red-600 rounded-md p-6 text-center text-black">
       <h1 class="text-xl font-bold text-red-600">Refactor Multiplayer</h1>
@@ -364,10 +397,10 @@ function getCellClasses(status: string) {
 
 function getKeyboardClasses(letter: string, status: string | undefined) {
   const base = letter === "ENTER"
-    ? "kbd bg-black text-pink-200 h-20"
+    ? "kbd kbd-xl bg-black text-pink-200 h-20"
     : letter === "BACKSPACE"
-      ? "kbd bg-black text-pink-200 font-bold w-16 sm:w-[73px] h-20"
-      : "kbd bg-black text-pink-200 h-20";
+      ? "kbd kbd-xl bg-black text-pink-200 font-bold w-16 sm:w-[73px] h-20"
+      : "kbd kbd-xl bg-black text-pink-200 h-20";
   if (status === "correct") {
     return `${base} bg-green-200 text-black`;
   }
@@ -451,6 +484,15 @@ async function fetchRoom(roomId: string) {
   return normalizeSnapshot((await response.json()) as RoomSnapshot);
 }
 
+async function fetchRoomByName(roomName: string) {
+  const params = new URLSearchParams({ roomName });
+  const response = await fetch(`${REFRACTOR_API_URL}/api/rooms/by-name?${params}`);
+  if (!response.ok) {
+    throw new Error(`Failed to load room snapshot (${response.status})`);
+  }
+  return normalizeSnapshot((await response.json()) as RoomSnapshot);
+}
+
 async function postJson(url: string, payload?: unknown) {
   const response = await fetch(url, {
     method: "POST",
@@ -478,17 +520,26 @@ function bindLandingControls() {
     try {
       const usernameInput = document.getElementById("username-input") as HTMLInputElement | null;
       const user = setLocalPlayerUsername(usernameInput?.value ?? "");
-      const roomId = generateRoomId();
+      const roomName = (document.getElementById("room-id-input") as HTMLInputElement | null)?.value?.trim();
+      if (!roomName) {
+        showLandingToast("Enter a room name.");
+        return;
+      }
       const snapshot = await postJson(`${REFRACTOR_API_URL}/api/rooms`, {
-        roomId,
+        roomName,
         hostUsername: user.username,
       });
       captureMembership(snapshot.roomId, user.username, snapshot);
-      setRecentRoomId(snapshot.roomId);
+      setRecentRoom(snapshot.roomId, snapshot.roomName);
       window.history.replaceState({}, "", `${window.location.pathname}?room=${snapshot.roomId}`);
       renderOrUpdateGame(snapshot);
     } catch (error) {
-      renderError(error instanceof Error ? error.message : "Unable to create room");
+      const message = error instanceof Error ? error.message : "Unable to create room";
+      if (message.toLowerCase().includes("already exists") || message.includes("(409)")) {
+        showLandingToast("That room already exists, try another name");
+        return;
+      }
+      showLandingToast(message.toLowerCase().includes("room name") ? message : "Unable to create room right now.");
     }
   });
 
@@ -496,14 +547,16 @@ function bindLandingControls() {
     try {
       const usernameInput = document.getElementById("username-input") as HTMLInputElement | null;
       const user = setLocalPlayerUsername(usernameInput?.value ?? "");
-      const roomId = (document.getElementById("room-id-input") as HTMLInputElement | null)?.value?.trim();
+      const roomName = (document.getElementById("room-id-input") as HTMLInputElement | null)?.value?.trim();
       const invitedRoomId = getRoomId();
-      const targetRoomId = roomId || invitedRoomId;
-      if (!targetRoomId) {
-        throw new Error("Room ID is required");
+      if (!roomName && !invitedRoomId) {
+        throw new Error("Room name is required");
       }
+      const existingSnapshot = roomName
+        ? await fetchRoomByName(roomName)
+        : await fetchRoom(invitedRoomId!);
+      const targetRoomId = existingSnapshot.roomId;
       const existingMembership = getRoomMembership(targetRoomId);
-      const existingSnapshot = await fetchRoom(targetRoomId);
       const membershipStillExists = existingMembership
         ? existingSnapshot.players.some((player) => player.playerId === existingMembership)
         : false;
@@ -513,7 +566,7 @@ function bindLandingControls() {
             username: user.username,
           });
       captureMembership(snapshot.roomId, user.username, snapshot);
-      setRecentRoomId(snapshot.roomId);
+      setRecentRoom(snapshot.roomId, snapshot.roomName);
       window.history.replaceState({}, "", `${window.location.pathname}?room=${snapshot.roomId}`);
       renderOrUpdateGame(snapshot);
     } catch (error) {
@@ -977,6 +1030,10 @@ function appendChatMessage(envelope: ChatEnvelope) {
 
   const user = ensureLocalPlayer();
   const isLocalUser = envelope.userId === user.userId;
+  const chatIsOpen = (document.getElementById("arrowBar") as HTMLInputElement | null)?.checked ?? false;
+  if (envelope.type === "chat" && !isLocalUser && !chatIsOpen) {
+    document.getElementById("unreadChatIndicator")?.classList.remove("hidden");
+  }
   const bubbleClass = envelope.type === "join" || envelope.type === "leave"
     ? "chat-bubble bg-white text-pink-300 border border-pink-300"
     : isLocalUser
@@ -999,7 +1056,7 @@ function bindChatCollapse() {
     document.getElementById("sendTextBtn")?.classList.toggle("fadeIn");
   });
 
-  document.getElementById("arrowBar")?.addEventListener("click", (event) => {
+  document.getElementById("arrowBar")?.addEventListener("change", (event) => {
     const target = event.target as HTMLInputElement;
     const collapseRoot = target.parentElement;
     if (!collapseRoot) {
@@ -1016,6 +1073,10 @@ function bindChatCollapse() {
 
     document.getElementById("arrowUp")?.classList.toggle("hidden");
     document.getElementById("arrowDown")?.classList.toggle("hidden");
+
+    if (target.checked) {
+      document.getElementById("unreadChatIndicator")?.classList.add("hidden");
+    }
   });
 }
 
@@ -1024,7 +1085,7 @@ function wiggleCurrentRow(snapshot: RoomSnapshot) {
   for (let colIndex = 0; colIndex < snapshot.wordLength; colIndex++) {
     const cell = document.getElementById(`cell-${rowIndex}-${colIndex}`);
     cell?.classList.add("animate-wiggle");
-    window.setTimeout(() => cell?.classList.remove("animate-wiggle"), 750);
+    window.setTimeout(() => cell?.classList.remove("animate-wiggle"), 1000);
   }
 }
 
@@ -1100,7 +1161,7 @@ function renderPlayerQueue(snapshot: RoomSnapshot) {
   }
 
   const orderedPlayers = [...snapshot.players].sort((left, right) => left.turnOrder - right.turnOrder);
-  queueContainer.className = "mt-3 flex w-full max-w-[320px] flex-col gap-2";
+  queueContainer.className = "mt-3 flex w-full flex-col gap-2";
   const previousCurrentPlayerId = lastHighlightedPlayerId;
 
   queueContainer.innerHTML = orderedPlayers.map((player, index) => {
@@ -1108,12 +1169,12 @@ function renderPlayerQueue(snapshot: RoomSnapshot) {
     const currentIndex = orderedPlayers.findIndex((candidate) => candidate.playerId === snapshot.currentTurn?.playerId);
     const label = index === currentIndex ? "Current" : index === (currentIndex + 1) % orderedPlayers.length ? "Next" : "";
     return `
-      <div data-player-pill="${player.playerId}" class="flex w-full items-center justify-between rounded-md border px-4 py-2 transition-all duration-500 ease-out overflow-hidden ${isCurrent ? "border-pink-300 bg-white shadow-sm opacity-100" : "border-black bg-white/70 opacity-70"}">
+      <div data-player-pill="${player.playerId}" class="flex items-center justify-between rounded-md border px-4 py-2 transition-all duration-500 ease-out overflow-hidden ${isCurrent ? "border-pink-300 bg-white shadow-sm opacity-100" : "border-black bg-white/70 opacity-70"}">
         <span class="min-w-0 truncate font-bold text-lg p-4 ${isCurrent ? "text-pink-300" : "text-black"}">${player.username}</span>
         <div class="ml-4 flex shrink-0 items-center gap-3">
           <span class="text-xs font-bold text-black p-4">${player.gameScore} game • ${player.totalScore} total</span>
           ${label
-            ? `<span class="rounded-full p-4 text-[10px] font-semibold uppercase tracking-[0.18em] ${isCurrent ? "bg-pink-100 text-black" : " text-black"}">${label}</span>`
+            ? `<span class="rounded-full p-4 text-[11px] font-semibold uppercase tracking-[0.18em] ${isCurrent ? "bg-pink-100 text-black" : " text-black"}">${label}</span>`
             : ""}
         </div>
       </div>
@@ -1352,7 +1413,7 @@ async function bootstrap() {
     const user = ensureLocalPlayer();
     const membership = getRoomMembership(roomId);
     const snapshot = await fetchRoom(roomId);
-    setRecentRoomId(roomId);
+    setRecentRoom(roomId, snapshot.roomName);
 
     if (membership) {
       const membershipStillExists = snapshot.players.some((player) => player.playerId === membership);
@@ -1372,12 +1433,13 @@ async function bootstrap() {
       return;
     }
 
-    renderLanding(roomId, true);
+    renderLanding(snapshot.roomName, true);
     showLandingToast("That room is already using your saved username. Update it to join.");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     if (message.includes("(404)")) {
-      renderLanding(getRoomId() ?? undefined, Boolean(getRoomId()));
+      renderLanding("", Boolean(getRoomId()));
+      showLandingToast("That room no longer exists.");
       return;
     }
     renderError(message);

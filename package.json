@@ -7,15 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "css": "npx tailwindcss --watch ./index.html --output ./style.css",
-    "buildCSS": "npx tailwindcss --output ./style.css",
+    "css": "npx @tailwindcss/cli -i ./index.css -o ./style.css --watch",
+    "multiCSS": "npm run css",
+    "buildCSS": "npx @tailwindcss/cli -i ./index.css -o ./style.css --minify",
     "type": "tsc --noEmit"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.19",
-    "daisyui": "^4.12.10",
+    "@tailwindcss/cli": "^4.1.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "daisyui": "^5.0.0",
     "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.4",
+    "tailwindcss": "^4.1.0",
     "typescript": "^5.2.2",
     "vite": "^5.3.1",
     "vite-plugin-html": "^3.2.2"

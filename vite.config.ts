@@ -36,6 +36,15 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       open: true,
+      proxy: {
+        '/api': 'http://localhost:1985',
+        '/wordoftheday': 'http://localhost:1985',
+        '/newgameword': 'http://localhost:1985',
+        '/ws': {
+          target: 'ws://localhost:1985',
+          ws: true,
+        },
+      },
     },
     plugins: [customRoutingPlugin()],
     build: {

@@ -1,15 +1,13 @@
 <!doctype html>
-<html lang="en" class="min-h-screen m-0">
+<html lang="en" class="min-h-screen w-full test">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="../style.css" type="text/css" />
-    <link rel="stylesheet" href="../index.css" type="text/css" />
     <link rel="shortcut icon" href="../favicon.ico" type="image/x-icon" />
     <link rel="icon" href="../favicon.ico" type="image/x-icon" />
     <style>
-      html,
-      body {
+      html {
         margin: 0;
         width: 100%;
         max-width: 100%;
@@ -19,6 +17,11 @@
         background-size: cover;
         background-repeat: no-repeat;
         background-position: center;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow: visible;
       }
 
       html:has(#gameOverModal[open]) {
@@ -86,13 +89,13 @@
         }
       }
     </style>
-    <title>Chic Wordle Multiplayer Refactor</title>
+    <title>Chic Wordle Multiplayer</title>
   </head>
-  <body>
-    <div id="app" class="bg-transparent w-full min-h-screen sm:w-1/2 mx-auto p-0 sm:p-1 pb-10">
+  <body class="box-border m-0 p-0 w-full">
+    <div id="app" class="bg-transparent w-full min-h-screen mx-auto p-0 sm:p-1 pb-10">
       <div class="bg-white/70 border border-black rounded-md p-6 text-center text-black">
         <h1 class="text-2xl sm:text-4xl font-bold italic">WORDLE</h1>
-        <p class="mt-4 font-semibold">Loading multiplayer refactor...</p>
+        <p class="mt-4 font-semibold">Loading multiplayer...</p>
       </div>
     </div>
 

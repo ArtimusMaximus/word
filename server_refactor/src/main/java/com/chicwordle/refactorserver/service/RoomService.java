@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -39,13 +40,19 @@ public class RoomService {
         return toSnapshot(requireRoom(roomId));
     }
 
-    public RoomSnapshot createRoom(CreateRoomRequest request) {
-        String roomId = sanitizeRoomId(request.roomId());
-        String hostUsername = sanitizeUsername(request.hostUsername());
-
-        if (roomStore.find(roomId) != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Room already exists");
+    public RoomSnapshot getRoomSnapshotByName(String roomName) {
+        RoomState room = roomStore.findByNormalizedName(normalizeRoomName(roomName));
+        if (room == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found");
         }
+        return toSnapshot(room);
+    }
+
+    public RoomSnapshot createRoom(CreateRoomRequest request) {
+        String roomName = sanitizeRoomName(request.roomName());
+        String normalizedRoomName = normalizeRoomName(roomName);
+        String roomId = UUID.randomUUID().toString();
+        String hostUsername = sanitizeUsername(request.hostUsername());
 
         List<PlayerState> players = List.of(
             new PlayerState(newPlayerId(), hostUsername, true, 0, 0, 0)
@@ -64,6 +71,9 @@ public class RoomService {
             List.of()
         );
 
+        if (!roomStore.registerName(roomId, roomName, normalizedRoomName)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "That room already exists, try another name");
+        }
         roomStore.save(createdRoom);
         return toSnapshot(createdRoom);
     }
@@ -258,6 +268,7 @@ public class RoomService {
 
         return new RoomSnapshot(
             room.getRoomId(),
+            roomStore.findName(room.getRoomId()),
             room.getStatus(),
             room.getWordLength(),
             room.getMaxRows(),
@@ -271,11 +282,19 @@ public class RoomService {
         );
     }
 
-    private String sanitizeRoomId(String roomId) {
-        if (roomId == null || roomId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room ID is required");
+    private String sanitizeRoomName(String roomName) {
+        if (roomName == null || roomName.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room name is required");
         }
-        return roomId.trim();
+        String sanitized = roomName.trim().replaceAll("\\s+", " ");
+        if (sanitized.length() > 40) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room name must be 40 characters or fewer");
+        }
+        return sanitized;
+    }
+
+    private String normalizeRoomName(String roomName) {
+        return sanitizeRoomName(roomName).toLowerCase(Locale.ROOT);
     }
 
     private String sanitizeUsername(String username) {

@@ -1,6 +1,25 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@source "./index.html";
+@source "./multi_player/**/*.html";
+@source "./multi_player_refactor/**/*.html";
+@source "./single_player_refactor/**/*.html";
+@source "./src/**/*.{js,ts,jsx,tsx}";
+@source "./src_refactor/**/*.{js,ts,jsx,tsx}";
+@plugin "daisyui";
+
+@theme {
+    --animate-wiggle: wiggle .15s ease-in-out infinite;
+
+    @keyframes wiggle {
+        0%, 100% {
+            transform: rotate(-3deg);
+        }
+
+        50% {
+            transform: rotate(3deg);
+        }
+    }
+}
 
 .box {
     transform-style: preserve-3d;
@@ -10,40 +29,7 @@
 
 
 .wiggleNotInList {
-
-    -webkit-animation-name: wiggle;
-    -ms-animation-name: wiggle;
-    -ms-animation-duration: 1000ms;
-    -webkit-animation-duration: 1000ms;
-    -webkit-animation-iteration-count: 1;
-    -ms-animation-iteration-count: 1;
-    -webkit-animation-timing-function: ease-in-out;
-    -ms-animation-timing-function: ease-in-out;
-
-
-    @-webkit-keyframes wiggle {
-    0% {-webkit-transform: rotate(10deg);}
-    25% {-webkit-transform: rotate(-10deg);}
-    50% {-webkit-transform: rotate(20deg);}
-    75% {-webkit-transform: rotate(-5deg);}
-    100% {-webkit-transform: rotate(0deg);}
-    }
-
-    @-ms-keyframes wiggle {
-    0% {-ms-transform: rotate(1deg);}
-    25% {-ms-transform: rotate(-1deg);}
-    50% {-ms-transform: rotate(1.5deg);}
-    75% {-ms-transform: rotate(-5deg);}
-    100% {-ms-transform: rotate(0deg);}
-    }
-
-    @keyframes wiggle {
-    0% {transform: rotate(10deg);}
-    25% {transform: rotate(-10deg);}
-    50% {transform: rotate(20deg);}
-    75% {transform: rotate(-5deg);}
-    100% {transform: rotate(0deg);}
-    }
+    animation: wiggle 1s ease-in-out;
 }
 
 /* .fadeIn {
@@ -74,4 +60,33 @@
     @apply hover:bg-pink-300 hover:text-white;
 }
 
+.unread-chat-indicator {
+    width: 0.65rem;
+    height: 0.65rem;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+    background-color: rgb(249 168 212);
+    box-shadow: 0 0 0 0 rgb(249 168 212 / 0.7);
+    animation: unread-chat-pulse 1.5s ease-out infinite;
+}
 
+@keyframes unread-chat-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgb(249 168 212 / 0.7);
+        opacity: 1;
+    }
+    70% {
+        box-shadow: 0 0 0 0.55rem rgb(249 168 212 / 0);
+        opacity: 0.8;
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgb(249 168 212 / 0);
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .unread-chat-indicator {
+        animation: none;
+    }
+}

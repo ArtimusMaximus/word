@@ -4,6 +4,7 @@ import java.util.List;
 
 public record RoomSnapshot(
     String roomId,
+    String roomName,
     String status,
     int wordLength,
     int maxRows,
