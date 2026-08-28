@@ -1,10 +1,10 @@
 package com.chicwordle.refactorserver.websocket;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -37,7 +37,7 @@ public class RoomGameWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         String roomId = getRoomId(session);
-        List<WebSocketSession> roomSessions = rooms.computeIfAbsent(roomId, ignored -> new ArrayList<>());
+        List<WebSocketSession> roomSessions = rooms.computeIfAbsent(roomId, ignored -> new CopyOnWriteArrayList<>());
         roomSessions.add(session);
 
         try {
@@ -114,6 +114,13 @@ public class RoomGameWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
+        // A page refresh can establish the replacement socket before the old
+        // socket's close event arrives. Keep the player while any other socket
+        // for the same room membership is still connected.
+        if (hasOpenSessionForUser(roomSessions, userId)) {
+            return;
+        }
+
         PlayerRemovalResult removalResult = roomService.removePlayer(roomId, userId);
         if (removalResult.removedUsername() != null) {
             roomChatWebSocketHandler.broadcastSystemMessage(
@@ -136,6 +143,16 @@ public class RoomGameWebSocketHandler extends TextWebSocketHandler {
                 }
             }
         }
+    }
+
+    private boolean hasOpenSessionForUser(List<WebSocketSession> roomSessions, String userId) {
+        if (roomSessions == null) {
+            return false;
+        }
+
+        return roomSessions.stream().anyMatch(roomSession ->
+            roomSession.isOpen() && userId.equals(getQueryValue(roomSession, "userId"))
+        );
     }
 
     private void broadcast(List<WebSocketSession> roomSessions, String payload) throws IOException {

@@ -1438,7 +1438,8 @@ async function bootstrap() {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     if (message.includes("(404)")) {
-      renderLanding("", Boolean(getRoomId()));
+      window.history.replaceState({}, "", window.location.pathname);
+      renderLanding("", false);
       showLandingToast("That room no longer exists.");
       return;
     }

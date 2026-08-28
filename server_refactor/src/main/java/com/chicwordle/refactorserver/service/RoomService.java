@@ -153,7 +153,7 @@ public class RoomService {
         return toSnapshot(updatedRoom);
     }
 
-    public PlayerRemovalResult removePlayer(String roomId, String userId) {
+    public synchronized PlayerRemovalResult removePlayer(String roomId, String userId) {
         RoomState room = roomStore.find(roomId);
         if (room == null) {
             return new PlayerRemovalResult(null, null, true);
