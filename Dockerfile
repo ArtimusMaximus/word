@@ -1,7 +1,7 @@
-FROM node:18 AS frontend-builder
+FROM node:20 AS frontend-builder
 WORKDIR /frontend
 COPY ./package*.json /frontend/
-RUN npm i
+RUN npm ci
 COPY . /frontend/
 RUN npm run buildCSS
 RUN npm run build
